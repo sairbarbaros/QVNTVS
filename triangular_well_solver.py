@@ -11,7 +11,7 @@ m_e = 9.10938356e-31  # kg, free electron mass
 
 #Object-Oriented Approach for v2
 
-V_barrier = 0.26 #Potential Barrier Height of InP-InGaAs heterojunction in eV [Tunable]
+V_barrier = 1.5 #Potential Barrier Height of InP-InGaAs heterojunction in eV [Tunable]
 
 V0 = V_barrier * ev_to_J # Potential Barrier Height in Joules [Use in Calculations]
 
@@ -45,8 +45,10 @@ well_end_index = np.argmin(np.abs(x - well_ending_point)) #They are indexed to t
 V_general = np.ones(N) * V0 #Setting all the points (N amount) to the potential barrier height 
 x_well = x[well_start_index:well_end_index]
 e = 1.602176634e-19  # Elementary charge in Coulombs
-F = 5e7
-V_general[well_start_index:well_end_index] = e * F * (x_well - x_well[0]) #The potential inside the well is naturally zero 
+F = 4e7
+V_general[well_start_index:well_end_index] = -e * F * (x_well - x_well[0]) #The potential inside the well is naturally zero 
+V_general[0:well_start_index] = V0  -e * F * (x[0:well_start_index] - x[well_start_index]) #The potential before the well is the barrier height
+V_general[well_end_index:] = V0 -e * F * (x[well_end_index:] - x[well_end_index]) #The potential after the well is the barrier height
 
 #Plotting the Potential Profile
 plt.plot(x* 1e9, V_general / ev_to_J, label='Potential Profile (eV)', color='red')  
