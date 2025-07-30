@@ -4,10 +4,66 @@ import scipy
 
 
 class Qvntvs:
+    """
+    QVNTVS : Quantum Well Solver for Visualization and Simulation of Semiconductors
+
+    -------------------------------------------------------------------------------------------
+    Key Features:
+        1-Multiple Options for Wells : Heterojunctions, Forward-Biased Triangular Wells, Multiple Wells, et cetera
+        2-Energy Level and Wavefunction plots for both electrons and holes
+        3-Recombination probabilities and spatial distributions
+
+    --------------------------------------------------------------------------------------------
+
+    Developer : sairbarbaros (Barbaros Şair)
+    """
+    
     def __init__(self, potential_barrier_electron=10000, potential_barrier_hole =10000, band_gap_well = 1.5,
                   m_e_barrier=1, m_e_well=1, m_h_barrier=1, m_h_well=1, biasing_voltage=3, well_width_nm=1.2,
                   barrier_width_nm=1.2, n_wells=1, n_intervals=2000):
+        """
+        Initialize the parameters for quantum mechanical calculations
+
+        Parameters
+        ---------------
+
+        potential_barrier_electron : float
+            Potential barrier height seen by electrons inside the well (in eV)
         
+        potential_barrier_hole : float
+            Potential barrier height seen by heavy holes inside the well (in eV)
+        
+        band_gap_well : float
+            Bandgap energy of the well material (in eV)
+
+        m_e_barrier : float
+            Effective mass of electrons inside the barrier (in m0 [free electron mass])
+        
+        m_e_well : float
+            Effective mass of electrons inside the well (in m0 [free electron mass])
+
+        m_h_barrier : float
+            Effective mass of heavy holes inside the barrier (in m0 [free electron mass])
+
+        m_h_well : float
+            Effective mass of heavy holes inside the barrier (in m0 [free electron mass])
+
+        biasing_voltage : float
+            Biasing voltage amplitude (in Volts)
+
+        well_width_nm : float
+            Spatial width of the well (in nm)
+        
+        barrier_width_nm : float
+            Spatial width of the barrier (in nm)
+
+        n_wells : integer
+            Number of quantum wells inside the structure
+
+        n_intervals : integer
+            Number of intervals that spatial axis will be divided  
+     
+        """
         #Defining Constants Used in the Quantum Mechanics Calculations
         self.h_bar = 1.0545718e-34
         self.ev_to_J = 1.602176634e-19
@@ -15,10 +71,10 @@ class Qvntvs:
         self.e = 1.602176634e-19
 
         #Defining Potential Barriers
-        self.V_barrier_electron = potential_barrier_electron #If you want to model infinite potential well, set this to a very high value
+        self.V_barrier_electron = potential_barrier_electron #To model an infinite potential well, set this to a very high value
         self.V0_electron = self.V_barrier_electron * 1.602176634e-19
 
-        self.V_barrier_hole = potential_barrier_hole #If you want to model infinite potential well, set this to a very high value
+        self.V_barrier_hole = potential_barrier_hole #To model an infinite potential well, set this to a very high value
         self.V0_hole = self.V_barrier_hole * 1.602176634e-19
 
 
@@ -54,9 +110,23 @@ class Qvntvs:
         self.band_gap_well = band_gap_well * self.ev_to_J  # Band gap in Joules
 
     def rectangular_potential_profile(self, electron=True, plot=True):
-        #Rectangular Potential Profile, multiple Quantum Well (MQW) Structures are added .v2
-        #Both hole and electron potential profiles can be modeled using this function while remembering that
-        #the hole  potential profile is the upside down version of the electron potential profile
+        """
+        Set the rectangular potential structure independently for electrons and holes
+        
+        Parameters
+        ----------
+        electron : boolean
+            Set the particle experiencing the potential
+        
+        plot : boolean
+            Set the plotting option
+        
+        Returns
+        ----------
+        V_general : ndarray
+            Potential profile of the structure
+
+        """
 
         if electron == True:
             V_general = np.ones(self.n_intervals) * self.V0_electron
@@ -64,7 +134,7 @@ class Qvntvs:
         else:
             V_general = np.ones(self.n_intervals) * self.V0_hole
 
-        position = self.barrier_width #The rightmost position of the first barrier that gives the start of the first well
+        position = self.barrier_width #The rightmost position of the first barrier, the start of the first well
 
         for _ in range(self.n_wells):
             #Setting the barrier region
@@ -77,7 +147,7 @@ class Qvntvs:
 
             V_general[left_of_well_index:right_of_well_index] = 0  
 
-            position = right_of_well + self.barrier_width # Giving the new start position for the well (its leftmost position)
+            position = right_of_well + self.barrier_width #The rightmost position of the next barrier, the start of the next well
 
         if plot:
             if electron:
@@ -103,10 +173,27 @@ class Qvntvs:
         return V_general
 
 
-    def triangular_potential_profile(self, electron=True, barrier_bending=True, plot=True, serial_print=False):
-    #Rectangular Potential Profile, multiple Quantum Well (MQW) Structures are added .v2
-    #Both hole and electron potential profiles can be modeled using this function while remembering that
-    #the hole  potential profile is the upside down version of the electron potential profile
+    def triangular_potential_profile(self, electron=True, barrier_bending=True, plot=True):
+        """
+        Set the triangular potential structure mimicking forward-biasing independently for electrons and holes
+        
+        Parameters
+        ----------
+        electron : boolean
+            Set the particle experiencing the potential
+
+        barrier_bending : boolean
+            Set True if barriers bend like wells
+        
+        plot : boolean
+            Set the plotting option
+        
+        Returns
+        ----------
+        V_general : ndarray
+            Potential profile of the structure
+
+        """
 
         if electron:
             V_general = np.ones(self.n_intervals) * self.V0_electron
@@ -114,7 +201,7 @@ class Qvntvs:
         else:
             V_general = np.ones(self.n_intervals) * self.V0_hole
 
-        position = self.barrier_width  # Start of the first well corresponds to the rightmost position of the first barrier
+        position = self.barrier_width #The rightmost position of the first barrier, the start of the first well
 
         for _ in range(self.n_wells):
             #Iterating n_wells times to create multiple wells
@@ -151,7 +238,7 @@ class Qvntvs:
                 
                 #The same for the right barrier
                 
-                right_barrier_start = right_of_well #It naturally starts at the right of the well
+                right_barrier_start = right_of_well #Starting at the right of the well
                 right_barrier_end = right_of_well + self.barrier_width
                 right_barrier_start_index = right_of_well_index
                 right_barrier_end_index = np.argmin(np.abs(self.x - right_barrier_end))
@@ -190,15 +277,30 @@ class Qvntvs:
 
 
     def effective_mass_profile(self, electron=True, plot=True):
-        #Effective Mass Profile
-        #Both hole and electron effective mass profiles can be modeled using this function.
+        """
+        Set the effective mass profiles for electrons and holes in different materials and heterojunctions
+        
+        Parameters
+        ----------
+        electron : boolean
+            Set the particle experiencing the potential
+
+        plot : boolean
+            Set the plotting option
+        
+        Returns
+        -----------
+        m_general : ndarray
+            Effective mass profile of the structure
+            
+        """
         if electron:
             m_general = np.ones(self.n_intervals) * self.m_e_barrier
 
         elif electron == False:
             m_general = np.ones(self.n_intervals) * self.m_h_barrier
 
-        position = self.barrier_width  #Same logic with the potentials
+        position = self.barrier_width  #Same Idea with the Potentials
 
         for _ in range(self.n_wells):
         #Structure
@@ -229,10 +331,29 @@ class Qvntvs:
         return m_general
 
     def inverse_mass_profile(self, m_general, electron = True, plot=True):
-        #Both hole and electron inverse mass profiles can be modeled using this function.
+        """
+        Compute the inverse masses and harmonic means for interfaces
+        
+        Parameters
+        ----------
+        m_general : ndarray
+            Effective mass profile
+        
+        electron : boolean
+            Set True if the profile is of electron
+
+        plot : boolean
+            Set True to plot
+
+        Results
+        -------
+
+        inv_mass : ndarray
+            Inverse mass profile
+        """
 
         if m_general is None:
-            #Using our previously defined effective mass profile function to get the effective mass profile
+            #Using the previously defined effective mass profile function to get the effective mass profile
             if electron:
                 m_general = self.effective_mass_profile(electron=True, plot=False)
             elif electron == False:
@@ -257,9 +378,31 @@ class Qvntvs:
         return inv_mass
 
     def hamiltonian_matrix(self, V_general, inv_mass, electron=True, plot=True):
+        """
+        Construct the Hamiltonian matrix numerically regarding Ben-Daniel-Duke and Finite-Difference Methods 
+        
+        Parameters
+        ----------
 
-        #Negative Definite Laplacian Matrix for the Hamiltonian
-        #Using the finite difference method to approximate the second derivative
+        V_general : ndarray
+            Potential profile of the structure
+        
+        inv_mass : ndarray
+            Inverse effective mass profile
+
+        electron : boolean
+            Set True if the particle is electron
+        
+        plot : boolean
+            Set True to plot
+
+        Results
+        ----------
+
+        H : ndarray
+            Hamiltonian matrix 
+        """
+        
         main_diagonal = np.zeros(self.n_intervals)
         off_diagonals = np.zeros(self.n_intervals-1)#Initializing the matrices
 
@@ -274,28 +417,66 @@ class Qvntvs:
         return H
 
     def eigen_equation(self, H, electron = True, plot=True, n_levels=4):
-        #The eigenequation of Time-Independent Schrödinger Equation gives us the energy levels as eigenvalues and the wavefunctions as eigenvectors
-        #Plotting the energy levels and wavefunctions
+        """
+        Solve the eigenequation of Time-Independent Schrödinger Equation to get energy levels and wavefunctions
+
+        Parameters
+        --------------
+        H : ndarray
+            Hamiltonian Matrix
+        
+        electron : boolean
+            Set True if the particle is electron
+
+        plot : boolean
+            Set True to plot
+
+        n_levels : integer
+            Maximum number of energy levels and wavefunctions to be computed.
+
+        Results
+        -------------
+        bound_levels : ndarray
+            Bound energy level states inside the well/wells
+
+        bound_wavefunctions : ndarray
+            Bound wavefunction states inside the well/wells
+
+        """
         energy_levels, wave_functions = scipy.linalg.eigh(H)
 
         if electron == False:
             energy_levels = -energy_levels
             wave_functions = -wave_functions 
+            V0 = self.V0_hole
+        else:
+            V0 = self.V0_electron
+        bound_levels = []
+        bound_wavefunctions = []
+        
+        for i in range(min(n_levels, len(energy_levels))):
+            if abs(energy_levels[i]) < abs(V0):
+                bound_levels.append(energy_levels[i])
+                bound_wavefunctions.append(wave_functions[:, i])
+
+        bound_levels = np.array(bound_levels)
+        bound_wavefunctions = np.column_stack(bound_wavefunctions) if bound_wavefunctions else np.array([])
+            
 
         if plot == True:
-            for i in range(n_levels):
-                print(f"  Energy Level {i+1}: {(energy_levels[i]) / self.ev_to_J:.3f} eV")
+            for i in range(len(bound_levels)):
+                print(f"  Energy Level {i+1}: {(bound_levels[i]) / self.ev_to_J:.3f} eV")
                 plt.title("Energy Level Plot")
                 plt.xlabel("Position (nm)")
                 plt.ylabel("Energy (eV)")
-                plt.plot(self.x * 1e9, energy_levels[i] / self.ev_to_J * np.ones_like(self.x), label=f"Energy Level {i+1} ({energy_levels[i] / self.ev_to_J:.3f} eV)", color='blue')
+                plt.plot(self.x * 1e9, bound_levels[i] / self.ev_to_J * np.ones_like(self.x), label=f"Energy Level {i+1} ({energy_levels[i] / self.ev_to_J:.3f} eV)", color='blue')
                 plt.legend()
             plt.grid(True)
             plt.figure()
-            for n in range(n_levels):
-                psi = wave_functions[:, n]
+            for n in range(len(bound_levels)):
+                psi = bound_wavefunctions[:, n]
                 psi /= np.sqrt(np.trapezoid(np.abs(psi)**2, self.x)) 
-                plt.plot(self.x * 1e9, psi, label=f"Wavefunction {n+1} (Energy: {energy_levels[n] / self.ev_to_J:.3f} eV)")
+                plt.plot(self.x * 1e9, psi, label=f"Wavefunction {n+1} (Energy: {bound_levels[n] / self.ev_to_J:.3f} eV)")
                 plt.title("Wavefunction Plot")
                 plt.xlabel("Position (nm)")
                 plt.ylabel("Wavefunction (psi)")
@@ -308,7 +489,31 @@ class Qvntvs:
         return energy_levels, wave_functions
 
     def recombination_probability(self, wave_function_electron, wave_function_hole, plot=True):
-        #Calculating the recombination probability density using the overlap integral of the wavefunctions
+        """
+        Compute the recombination probabilities
+        
+        Parameters
+        ----------
+
+        wave_function_electron : ndarray
+            Spatial electron wavefunction inside the well/wells
+        
+        wave_function_hole : ndarray
+            Spatial hole wavefunction inside the well/wells
+
+        plot : boolean
+            Set True to plot
+
+        Returns
+        -------
+
+        recombination_probability : float
+            Probability of first levels of electrons and holes to recombine
+        
+        recombination_density : ndarray
+            Spatial probability distribution of recombination
+
+        """
         
         psi_e = wave_function_electron[0]
         psi_h = wave_function_hole[0]
@@ -345,5 +550,4 @@ class Qvntvs:
 
         return recombination_probability, recombination_density
         
-
 
