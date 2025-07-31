@@ -69,6 +69,7 @@ class Qvntvs:
         self.ev_to_J = 1.602176634e-19
         self.m_e = 9.10938356e-31
         self.e = 1.602176634e-19
+        self.c = 3.0e8
 
         #Defining Potential Barriers
         self.V_barrier_electron = potential_barrier_electron #To model an infinite potential well, set this to a very high value
@@ -104,12 +105,13 @@ class Qvntvs:
 
         #Defining the Biasing Voltage
         self.biasing_voltage = biasing_voltage
-        self.force = self.biasing_voltage / self.barrier_width
+        self.force = self.biasing_voltage /self.total_length
 
         #Defining Band Gap of the Well Material
-        self.band_gap_well = band_gap_well * self.ev_to_J  # Band gap in Joules
+        self.band_gap_well = band_gap_well*self.ev_to_J  # Band gap in Joules
 
     def rectangular_potential_profile(self, electron=True, plot=True):
+        
         """
         Set the rectangular potential structure independently for electrons and holes
         
@@ -173,7 +175,8 @@ class Qvntvs:
         return V_general
 
 
-    def triangular_potential_profile(self, electron=True, barrier_bending=True, plot=True):
+    def triangular_potential_profile(self, electron=True, plot=True):
+
         """
         Set the triangular potential structure mimicking forward-biasing independently for electrons and holes
         
@@ -181,9 +184,6 @@ class Qvntvs:
         ----------
         electron : boolean
             Set the particle experiencing the potential
-
-        barrier_bending : boolean
-            Set True if barriers bend like wells
         
         plot : boolean
             Set the plotting option
@@ -195,61 +195,28 @@ class Qvntvs:
 
         """
 
-        if electron:
-            V_general = np.ones(self.n_intervals) * self.V0_electron
+        if electron == True:
+            V_general =self.V0_electron + self.band_gap_well/2 - np.ones(self.n_intervals) * self.e*self.force*self.x
+            V_comp = V_general
 
         else:
-            V_general = np.ones(self.n_intervals) * self.V0_hole
-
+            V_general = self.V0_hole + self.band_gap_well/2 + np.ones(self.n_intervals) *self.e*self.force*self.x
+            V_comp = V_general
         position = self.barrier_width #The rightmost position of the first barrier, the start of the first well
 
         for _ in range(self.n_wells):
-            #Iterating n_wells times to create multiple wells
-            
+                #Setting the barrier region
+    
             left_of_well = position
             right_of_well = position + self.well_width
 
             left_of_well_index = np.argmin(np.abs(self.x - left_of_well))
             right_of_well_index = np.argmin(np.abs(self.x - right_of_well))
-
-            #Discretized coordinates of the well
-            x_well = self.x[left_of_well_index:right_of_well_index]
-
-            #Calculating the potential at the wells 
             if electron:
-                V_general[left_of_well_index:right_of_well_index] = self.e * self.force * (x_well - x_well[0])
+                V_general[left_of_well_index:right_of_well_index] = V_comp[left_of_well_index:right_of_well_index] - self.V0_electron 
             else:
-                V_general[left_of_well_index:right_of_well_index] = -self.e * self.force * (x_well - x_well[0])
-
-            if barrier_bending:
-                #Calculating potentials at the left and right barriers
-    
-                left_barrier_start = left_of_well - self.barrier_width
-                left_barrier_end = left_of_well
-                left_barrier_start_index = np.argmin(np.abs(self.x - left_barrier_start))
-                left_barrier_end_index = left_of_well_index #It ends at the left of the well
-
-                left_barrier_positions = self.x[left_barrier_start_index:left_barrier_end_index]
-
-                if electron:
-                    V_general[left_barrier_start_index:left_barrier_end_index] = self.V0_electron + self.e * self.force * (left_barrier_positions - x_well[0])
-                else:
-                    V_general[left_barrier_start_index:left_barrier_end_index] = self.V0_hole - self.e * self.force * (left_barrier_positions - x_well[0])
-                
-                #The same for the right barrier
-                
-                right_barrier_start = right_of_well #Starting at the right of the well
-                right_barrier_end = right_of_well + self.barrier_width
-                right_barrier_start_index = right_of_well_index
-                right_barrier_end_index = np.argmin(np.abs(self.x - right_barrier_end))
-
-                right_barrier_positions = self.x[right_barrier_start_index:right_barrier_end_index]
-                if electron:
-                    V_general[right_barrier_start_index:right_barrier_end_index] = self.V0_electron + self.e * self.force * (right_barrier_positions - x_well[-1])
-                else:
-                    V_general[right_barrier_start_index:right_barrier_end_index] = self.V0_hole - self.e * self.force * (right_barrier_positions - x_well[-1])
-
-            position = right_of_well + self.barrier_width #Iterate to the next well
+                V_general[left_of_well_index:right_of_well_index] = V_comp[left_of_well_index:right_of_well_index] - self.V0_hole
+            position = right_of_well + self.barrier_width #The rightmost position of the next barrier, the start of the next well
 
         if plot:
             if electron:
@@ -273,9 +240,7 @@ class Qvntvs:
             plt.close()
 
         return V_general
-
-
-
+    
     def effective_mass_profile(self, electron=True, plot=True):
         """
         Set the effective mass profiles for electrons and holes in different materials and heterojunctions
@@ -461,6 +426,9 @@ class Qvntvs:
 
         bound_levels = np.array(bound_levels)
         bound_wavefunctions = np.column_stack(bound_wavefunctions) if bound_wavefunctions else np.array([])
+
+        if len(bound_levels) == 0:
+            print("No Bound Levels!")
             
 
         if plot == True:
@@ -486,12 +454,13 @@ class Qvntvs:
         else:
             plt.close()
 
-        return energy_levels, wave_functions
+        return bound_levels, bound_wavefunctions
 
     def recombination_probability(self, wave_function_electron, wave_function_hole, plot=True):
         """
         Compute the recombination probabilities
-        
+        Note: Only Bound-State Recombinations can be computed
+
         Parameters
         ----------
 
@@ -514,40 +483,103 @@ class Qvntvs:
             Spatial probability distribution of recombination
 
         """
-        
-        psi_e = wave_function_electron[0]
-        psi_h = wave_function_hole[0]
+        if len(wave_function_electron) > 0 and len(wave_function_hole > 0):
+            psi_e = wave_function_electron[:, 0]  
+            psi_h = wave_function_hole[:, 0]     
+    
+            psi_e = psi_e / np.sqrt(np.trapezoid(np.abs(psi_e)**2, self.x))
+            psi_h = psi_h / np.sqrt(np.trapezoid(np.abs(psi_h)**2, self.x))
+            
+            #Calculating the overlap integral
+            overlap = np.trapezoid(np.conj(psi_e) * psi_h, self.x)
 
-        #Normalizing the wavefunctions
-        psi_e = psi_e / np.sqrt(np.trapezoid(np.abs(psi_e)**2, self.x))
-        psi_h = psi_h / np.sqrt(np.trapezoid(np.abs(psi_h)**2, self.x))
-        
-        #Calculating the overlap integral
-        overlap = np.trapezoid(np.conj(psi_e) * psi_h, self.x)
+            recombination_probability = np.abs(overlap)**2
+            recombination_density = np.abs(np.conj(psi_e) * psi_h)**2
 
-        recombination_probability = np.abs(overlap)**2
-        recombination_density = np.abs(np.conj(psi_e) * psi_h)**2
+            print(f"Recombination Probability (Ground States): {recombination_probability:.3e}")
 
-        print(f"Recombination Probability (Ground States): {recombination_probability:.3e}")
+            if plot:
+                plt.bar([0], [recombination_probability], color='purple', width=0.4)
+                plt.title("Total Recombination Probability")
+                plt.ylabel("Probability Value")
+                plt.grid(True)
+                plt.show()
 
-        if plot:
-            plt.bar([0], [recombination_probability], color='purple', width=0.4)
-            plt.title("Total Recombination Probability")
-            plt.ylabel("Probability Value")
-            plt.grid(True)
-            plt.show()
+                plt.plot(self.x * 1e9, recombination_density, color='purple', label='Overlap Density')
+                plt.title("Spatial Wavefunctions Overlap Density")
+                plt.xlabel("Position (nm)")
+                plt.ylabel("Overlap Density")
+                plt.grid(True)
+                plt.legend()
+                plt.show()
 
-            plt.plot(self.x * 1e9, recombination_density, color='purple', label='Overlap Density')
-            plt.title("Spatial Wavefunctions Overlap Density")
-            plt.xlabel("Position (nm)")
-            plt.ylabel("Overlap Density")
-            plt.grid(True)
-            plt.legend()
-            plt.show()
-
+            else:
+                plt.close()
         else:
-            plt.close()
+            recombination_probability = 0
+            recombination_density = 0
+
+            print("No Bound-State Recombination!")
 
         return recombination_probability, recombination_density
         
+    def optical_emission(self, energy_levels_electron, energy_levels_hole):
+        """
+        Calculate the wavelength of the emission
+        Parameters
+        ----------
+        energy_levels_electron : ndarray
+            Eigenvalues of the eigenequation with Hamiltonian for electrons (in Joules)
+        
+        energy_levels_hole : ndarray
+            Eigenvalues of the eigenequation with Hamiltonian for holes (in Joules)
+
+        Returns
+        --------
+
+        wavelength_in_nm : float
+            The wavelength of the emission
+        """
+        if len(energy_levels_electron) > 0 and len(energy_levels_hole) > 0:
+
+            E_photon = self.band_gap_well + (energy_levels_electron[0]) + abs(energy_levels_hole[0])
+            h = self.h_bar*2*3.14
+
+            wavelength = h*self.c/E_photon
+
+            wavelength_in_nm = wavelength*1e9
+        
+        elif len(energy_levels_electron) == 0 and len(energy_levels_hole) > 0:
+            
+            E_photon = self.band_gap_well + abs(energy_levels_hole[0])
+            h = self.h_bar*2*3.14
+
+            wavelength = h*self.c/E_photon
+
+            wavelength_in_nm = wavelength*1e9
+
+        elif len(energy_levels_electron) > 0 and len(energy_levels_hole) ==0:
+            
+            E_photon = self.band_gap_well + (energy_levels_electron[0])
+            h = self.h_bar*2*3.14
+
+            wavelength = h*self.c/E_photon
+
+            wavelength_in_nm = wavelength*1e9
+
+        else:
+            E_photon = self.band_gap_well
+            h = self.h_bar*2*3.14
+
+            wavelength = h*self.c/E_photon
+
+            wavelength_in_nm = wavelength*1e9
+        print(f"Emission Wavelength is : {wavelength_in_nm:.5f} nm")
+
+        return wavelength_in_nm
+
+
+
+
+
 
