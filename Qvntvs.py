@@ -110,6 +110,7 @@ class Qvntvs:
         self.band_gap_well = band_gap_well * self.ev_to_J  # Band gap in Joules
 
     def rectangular_potential_profile(self, electron=True, plot=True):
+        
         """
         Set the rectangular potential structure independently for electrons and holes
         
@@ -173,7 +174,8 @@ class Qvntvs:
         return V_general
 
 
-    def triangular_potential_profile(self, electron=True, barrier_bending=True, plot=True):
+    def triangular_potential_profile(self, electron=True, plot=True):
+
         """
         Set the triangular potential structure mimicking forward-biasing independently for electrons and holes
         
@@ -181,9 +183,6 @@ class Qvntvs:
         ----------
         electron : boolean
             Set the particle experiencing the potential
-
-        barrier_bending : boolean
-            Set True if barriers bend like wells
         
         plot : boolean
             Set the plotting option
@@ -195,61 +194,28 @@ class Qvntvs:
 
         """
 
-        if electron:
-            V_general = np.ones(self.n_intervals) * self.V0_electron
+        if electron == True:
+            V_general =self.V0_electron - np.ones(self.n_intervals) * self.e*self.force*self.x
+            V_comp = V_general
 
         else:
-            V_general = np.ones(self.n_intervals) * self.V0_hole
-
+            V_general = self.V0_hole + np.ones(self.n_intervals) *self.e*self.force*self.x
+            V_comp = V_general
         position = self.barrier_width #The rightmost position of the first barrier, the start of the first well
 
         for _ in range(self.n_wells):
-            #Iterating n_wells times to create multiple wells
-            
+                #Setting the barrier region
+    
             left_of_well = position
             right_of_well = position + self.well_width
 
             left_of_well_index = np.argmin(np.abs(self.x - left_of_well))
             right_of_well_index = np.argmin(np.abs(self.x - right_of_well))
-
-            #Discretized coordinates of the well
-            x_well = self.x[left_of_well_index:right_of_well_index]
-
-            #Calculating the potential at the wells 
             if electron:
-                V_general[left_of_well_index:right_of_well_index] = self.e * self.force * (x_well - x_well[0])
+                V_general[left_of_well_index:right_of_well_index] = V_comp[left_of_well_index:right_of_well_index] - self.V0_electron 
             else:
-                V_general[left_of_well_index:right_of_well_index] = -self.e * self.force * (x_well - x_well[0])
-
-            if barrier_bending:
-                #Calculating potentials at the left and right barriers
-    
-                left_barrier_start = left_of_well - self.barrier_width
-                left_barrier_end = left_of_well
-                left_barrier_start_index = np.argmin(np.abs(self.x - left_barrier_start))
-                left_barrier_end_index = left_of_well_index #It ends at the left of the well
-
-                left_barrier_positions = self.x[left_barrier_start_index:left_barrier_end_index]
-
-                if electron:
-                    V_general[left_barrier_start_index:left_barrier_end_index] = self.V0_electron + self.e * self.force * (left_barrier_positions - x_well[0])
-                else:
-                    V_general[left_barrier_start_index:left_barrier_end_index] = self.V0_hole - self.e * self.force * (left_barrier_positions - x_well[0])
-                
-                #The same for the right barrier
-                
-                right_barrier_start = right_of_well #Starting at the right of the well
-                right_barrier_end = right_of_well + self.barrier_width
-                right_barrier_start_index = right_of_well_index
-                right_barrier_end_index = np.argmin(np.abs(self.x - right_barrier_end))
-
-                right_barrier_positions = self.x[right_barrier_start_index:right_barrier_end_index]
-                if electron:
-                    V_general[right_barrier_start_index:right_barrier_end_index] = self.V0_electron + self.e * self.force * (right_barrier_positions - x_well[-1])
-                else:
-                    V_general[right_barrier_start_index:right_barrier_end_index] = self.V0_hole - self.e * self.force * (right_barrier_positions - x_well[-1])
-
-            position = right_of_well + self.barrier_width #Iterate to the next well
+                V_general[left_of_well_index:right_of_well_index] = V_comp[left_of_well_index:right_of_well_index] - self.V0_hole
+            position = right_of_well + self.barrier_width #The rightmost position of the next barrier, the start of the next well
 
         if plot:
             if electron:
@@ -273,9 +239,7 @@ class Qvntvs:
             plt.close()
 
         return V_general
-
-
-
+    
     def effective_mass_profile(self, electron=True, plot=True):
         """
         Set the effective mass profiles for electrons and holes in different materials and heterojunctions
@@ -461,6 +425,9 @@ class Qvntvs:
 
         bound_levels = np.array(bound_levels)
         bound_wavefunctions = np.column_stack(bound_wavefunctions) if bound_wavefunctions else np.array([])
+
+        if len(bound_levels) == 0:
+            print("No Bound Levels!")
             
 
         if plot == True:
@@ -550,6 +517,11 @@ class Qvntvs:
 
         return recombination_probability, recombination_density
         
+
+
+
+
+
 
 
 
