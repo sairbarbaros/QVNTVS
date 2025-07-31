@@ -69,6 +69,7 @@ class Qvntvs:
         self.ev_to_J = 1.602176634e-19
         self.m_e = 9.10938356e-31
         self.e = 1.602176634e-19
+        self.c = 3.0e8
 
         #Defining Potential Barriers
         self.V_barrier_electron = potential_barrier_electron #To model an infinite potential well, set this to a very high value
@@ -104,10 +105,10 @@ class Qvntvs:
 
         #Defining the Biasing Voltage
         self.biasing_voltage = biasing_voltage
-        self.force = self.biasing_voltage / self.barrier_width
+        self.force = self.biasing_voltage /self.total_length
 
         #Defining Band Gap of the Well Material
-        self.band_gap_well = band_gap_well * self.ev_to_J  # Band gap in Joules
+        self.band_gap_well = band_gap_well*self.ev_to_J  # Band gap in Joules
 
     def rectangular_potential_profile(self, electron=True, plot=True):
         
@@ -195,11 +196,11 @@ class Qvntvs:
         """
 
         if electron == True:
-            V_general =self.V0_electron - np.ones(self.n_intervals) * self.e*self.force*self.x
+            V_general =self.V0_electron + self.band_gap_well/2 - np.ones(self.n_intervals) * self.e*self.force*self.x
             V_comp = V_general
 
         else:
-            V_general = self.V0_hole + np.ones(self.n_intervals) *self.e*self.force*self.x
+            V_general = self.V0_hole + self.band_gap_well/2 + np.ones(self.n_intervals) *self.e*self.force*self.x
             V_comp = V_general
         position = self.barrier_width #The rightmost position of the first barrier, the start of the first well
 
@@ -453,12 +454,13 @@ class Qvntvs:
         else:
             plt.close()
 
-        return energy_levels, wave_functions
+        return bound_levels, bound_wavefunctions
 
     def recombination_probability(self, wave_function_electron, wave_function_hole, plot=True):
         """
         Compute the recombination probabilities
-        
+        Note: Only Bound-State Recombinations can be computed
+
         Parameters
         ----------
 
@@ -481,49 +483,97 @@ class Qvntvs:
             Spatial probability distribution of recombination
 
         """
-        
-        psi_e = wave_function_electron[0]
-        psi_h = wave_function_hole[0]
+        if len(wave_function_electron) > 0 and len(wave_function_hole > 0):
+            psi_e = wave_function_electron[:, 0]  
+            psi_h = wave_function_hole[:, 0]     
+    
+            psi_e = psi_e / np.sqrt(np.trapezoid(np.abs(psi_e)**2, self.x))
+            psi_h = psi_h / np.sqrt(np.trapezoid(np.abs(psi_h)**2, self.x))
+            
+            #Calculating the overlap integral
+            overlap = np.trapezoid(np.conj(psi_e) * psi_h, self.x)
 
-        #Normalizing the wavefunctions
-        psi_e = psi_e / np.sqrt(np.trapezoid(np.abs(psi_e)**2, self.x))
-        psi_h = psi_h / np.sqrt(np.trapezoid(np.abs(psi_h)**2, self.x))
-        
-        #Calculating the overlap integral
-        overlap = np.trapezoid(np.conj(psi_e) * psi_h, self.x)
+            recombination_probability = np.abs(overlap)**2
+            recombination_density = np.abs(np.conj(psi_e) * psi_h)**2
 
-        recombination_probability = np.abs(overlap)**2
-        recombination_density = np.abs(np.conj(psi_e) * psi_h)**2
+            print(f"Recombination Probability (Ground States): {recombination_probability:.3e}")
 
-        print(f"Recombination Probability (Ground States): {recombination_probability:.3e}")
+            if plot:
+                plt.bar([0], [recombination_probability], color='purple', width=0.4)
+                plt.title("Total Recombination Probability")
+                plt.ylabel("Probability Value")
+                plt.grid(True)
+                plt.show()
 
-        if plot:
-            plt.bar([0], [recombination_probability], color='purple', width=0.4)
-            plt.title("Total Recombination Probability")
-            plt.ylabel("Probability Value")
-            plt.grid(True)
-            plt.show()
+                plt.plot(self.x * 1e9, recombination_density, color='purple', label='Overlap Density')
+                plt.title("Spatial Wavefunctions Overlap Density")
+                plt.xlabel("Position (nm)")
+                plt.ylabel("Overlap Density")
+                plt.grid(True)
+                plt.legend()
+                plt.show()
 
-            plt.plot(self.x * 1e9, recombination_density, color='purple', label='Overlap Density')
-            plt.title("Spatial Wavefunctions Overlap Density")
-            plt.xlabel("Position (nm)")
-            plt.ylabel("Overlap Density")
-            plt.grid(True)
-            plt.legend()
-            plt.show()
-
+            else:
+                plt.close()
         else:
-            plt.close()
+            recombination_probability = 0
+            recombination_density = 0
+
+            print("No Bound-State Recombination!")
 
         return recombination_probability, recombination_density
         
+    def optical_emission(self, energy_levels_electron, energy_levels_hole):
+        """
+        Calculate the wavelength of the emission
+        Parameters
+        ----------
+        energy_levels_electron : ndarray
+            Eigenvalues of the eigenequation with Hamiltonian for electrons (in Joules)
+        
+        energy_levels_hole : ndarray
+            Eigenvalues of the eigenequation with Hamiltonian for holes (in Joules)
 
+        Returns
+        --------
 
+        wavelength_in_nm : float
+            The wavelength of the emission
+        """
+        if len(energy_levels_electron) > 0 and len(energy_levels_hole) > 0:
 
+            E_photon = self.band_gap_well + (energy_levels_electron[0]) + abs(energy_levels_hole[0])
+            h = self.h_bar*2*3.14
 
+            wavelength = h*self.c/E_photon
 
+            wavelength_in_nm = wavelength*1e9
+        
+        elif len(energy_levels_electron) == 0 and len(energy_levels_hole) > 0:
+            
+            E_photon = self.band_gap_well + abs(energy_levels_hole[0])
+            h = self.h_bar*2*3.14
 
+            wavelength = h*self.c/E_photon
 
+            wavelength_in_nm = wavelength*1e9
 
+        elif len(energy_levels_electron) > 0 and len(energy_levels_hole) ==0:
+            
+            E_photon = self.band_gap_well + (energy_levels_electron[0])
+            h = self.h_bar*2*3.14
 
+            wavelength = h*self.c/E_photon
 
+            wavelength_in_nm = wavelength*1e9
+
+        else:
+            E_photon = self.band_gap_well
+            h = self.h_bar*2*3.14
+
+            wavelength = h*self.c/E_photon
+
+            wavelength_in_nm = wavelength*1e9
+        print(f"Emission Wavelength is : {wavelength_in_nm:.5f} nm")
+
+        return wavelength_in_nm
