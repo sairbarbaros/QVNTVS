@@ -19,7 +19,7 @@ class Qvntvs:
     """
     
     def __init__(self, potential_barrier_electron=10000, potential_barrier_hole =10000, band_gap_well = 1.5,
-                  m_e_barrier=1, m_e_well=1, m_h_barrier=1, m_h_well=1, biasing_voltage=3, well_width_nm=1.2,
+                  m_e_barrier=1, m_e_well=1, m_h_barrier=1, m_h_well=1, biasing_voltage=3, built_in_voltage = 2.5, well_width_nm=1.2,
                   barrier_width_nm=1.2, n_wells=1, n_intervals=2000):
         """
         Initialize the parameters for quantum mechanical calculations
@@ -50,6 +50,9 @@ class Qvntvs:
 
         biasing_voltage : float
             Biasing voltage amplitude (in Volts)
+
+        built_in_voltage : float
+            Built-in voltage of the pn-junction (in Volts)
 
         well_width_nm : float
             Spatial width of the well (in nm)
@@ -105,7 +108,8 @@ class Qvntvs:
 
         #Defining the Biasing Voltage
         self.biasing_voltage = biasing_voltage
-        self.force = self.biasing_voltage /self.total_length
+        self.built_in_voltage = built_in_voltage
+        self.force = 2*(self.built_in_voltage-self.biasing_voltage) /self.total_length
 
         #Defining Band Gap of the Well Material
         self.band_gap_well = band_gap_well*self.ev_to_J  # Band gap in Joules
@@ -196,11 +200,11 @@ class Qvntvs:
         """
 
         if electron == True:
-            V_general =self.V0_electron + self.band_gap_well/2 - np.ones(self.n_intervals) * self.e*self.force*self.x
+            V_general =- np.ones(self.n_intervals) * self.e*self.force*self.x
             V_comp = V_general
 
         else:
-            V_general = self.V0_hole + self.band_gap_well/2 + np.ones(self.n_intervals) *self.e*self.force*self.x
+            V_general = np.ones(self.n_intervals) *self.e*self.force*self.x
             V_comp = V_general
         position = self.barrier_width #The rightmost position of the first barrier, the start of the first well
 
@@ -217,6 +221,9 @@ class Qvntvs:
             else:
                 V_general[left_of_well_index:right_of_well_index] = V_comp[left_of_well_index:right_of_well_index] - self.V0_hole
             position = right_of_well + self.barrier_width #The rightmost position of the next barrier, the start of the next well
+
+        min_V = np.min(V_general)
+        V_general -= min_V
 
         if plot:
             if electron:
@@ -574,6 +581,16 @@ class Qvntvs:
             wavelength = h*self.c/E_photon
 
             wavelength_in_nm = wavelength*1e9
-        print(f"Emission Wavelength is : {wavelength_in_nm:.5f} nm")
+        if 0 < wavelength_in_nm < 405:
+            color = "Violet" 
+        elif 405 < wavelength_in_nm < 505:
+            color = "Blue"
+        elif 500 < wavelength_in_nm < 600:
+            color = "Green"
+        elif 600 < wavelength_in_nm < 800:
+            color = "Red"
+        else:
+            color = "Infrared"
+        print(f"Emission Wavelength is : {wavelength_in_nm:.5f} nm, {color}")
 
         return wavelength_in_nm
