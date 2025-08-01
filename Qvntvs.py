@@ -119,6 +119,7 @@ class Qvntvs:
         self.biasing_voltage = biasing_voltage
         self.built_in_voltage = built_in_voltage
         self.force = 2*(self.built_in_voltage-self.biasing_voltage) /self.total_length
+        
 
         #Defining Band Gap of the Well Material
         self.band_gap_well = band_gap_well*self.ev_to_J  # Band gap in Joules
@@ -217,6 +218,7 @@ class Qvntvs:
             V_comp = V_general
         position = self.barrier_width #The rightmost position of the first barrier, the start of the first well
 
+        well_regions = []
         for _ in range(self.n_wells):
                 #Setting the barrier region
     
@@ -225,21 +227,44 @@ class Qvntvs:
 
             left_of_well_index = np.argmin(np.abs(self.x - left_of_well))
             right_of_well_index = np.argmin(np.abs(self.x - right_of_well))
+            well_regions.append((left_of_well_index, right_of_well_index
+                                 ))
             if electron:
                 V_general[left_of_well_index:right_of_well_index] = V_comp[left_of_well_index:right_of_well_index] - self.V0_electron 
             else:
                 V_general[left_of_well_index:right_of_well_index] = V_comp[left_of_well_index:right_of_well_index] - self.V0_hole
             position = right_of_well + self.barrier_width #The rightmost position of the next barrier, the start of the next well
 
-        min_V = np.min(V_general)
-        V_general -= min_V
+        if self.built_in_voltage >= self.biasing_voltage:
 
+            if electron:
+                reference_well_left, reference_well_right = well_regions[-1]
+                lowest_point = np.min(V_general[reference_well_left:reference_well_right])
+                V_general -= lowest_point
 
+            else:
+                reference_well_left, reference_well_right = well_regions[0]
+                lowest_point = np.min(V_general[reference_well_left:reference_well_right])
+                V_general -= lowest_point
+
+        else:
+
+            if electron:
+                reference_well_left, reference_well_right = well_regions[0]
+                lowest_point = np.min(V_general[reference_well_left:reference_well_right])
+                V_general -= lowest_point
+
+            else:
+                reference_well_left, reference_well_right = well_regions[-1]
+                lowest_point = np.min(V_general[reference_well_left:reference_well_right])
+                V_general -= lowest_point
+
+        
         """
-        The reference point for the electron potential profile is the topmost potential of well material bandgap
-        The reference point for the hole potential profile is the bottommost potential of well material bandgap
+        The reference point for the electron potential profile is the lowest point of the lowest well.
+        The reference point for the hole potential profile is the highest point of the highest well.
 
-        References are chosen this way to quickly compute optical emission energies.
+        References are chosen this way to add the energy levels on top of bandgap correctly.
         """
 
         if plot:
@@ -264,6 +289,7 @@ class Qvntvs:
             plt.close()
 
         return V_general
+    
     
     def effective_mass_profile(self, plot=True):
         """
@@ -577,13 +603,13 @@ class Qvntvs:
         wavelength_in_nm : float
             The wavelength of the emission
         """
+        energy_levels_electron = energy_levels_electron[np.where(energy_levels_electron >= 0)]
+        energy_levels_hole = energy_levels_hole[np.where(energy_levels_hole <= 0)]
 
-        biasing_joule = self.biasing_voltage*self.ev_to_J
-        built_in_joule = self.built_in_voltage*self.ev_to_J
 
         if len(energy_levels_electron) > 0 and len(energy_levels_hole) > 0:
 
-            E_photon = self.band_gap_well + (energy_levels_electron[0]) -(energy_levels_hole[0])
+            E_photon = self.band_gap_well + (energy_levels_electron[0]) - energy_levels_hole[0]
             h = self.h_bar*2*3.14
 
             wavelength = h*self.c/E_photon
