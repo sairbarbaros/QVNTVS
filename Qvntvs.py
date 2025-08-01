@@ -19,7 +19,7 @@ class Qvntvs:
     """
     
     def __init__(self, potential_barrier_electron=10000, potential_barrier_hole =10000, band_gap_well = 1.5,
-                  m_e_barrier=1, m_e_well=1, m_h_barrier=1, m_h_well=1, biasing_voltage=3, built_in_voltage = 2.5, well_width_nm=1.2,
+                  m_e_barrier=1, m_e_well=1, m_hh_barrier=1, m_hh_well=1, m_lh_barrier=0.3, m_lh_well=0.3, biasing_voltage=3, built_in_voltage = 2.5, well_width_nm=1.2,
                   barrier_width_nm=1.2, n_wells=1, n_intervals=2000):
         """
         Initialize the parameters for quantum mechanical calculations
@@ -42,12 +42,18 @@ class Qvntvs:
         m_e_well : float
             Effective mass of electrons inside the well (in m0 [free electron mass])
 
-        m_h_barrier : float
+        m_hh_barrier : float
             Effective mass of heavy holes inside the barrier (in m0 [free electron mass])
 
-        m_h_well : float
+        m_hh_well : float
             Effective mass of heavy holes inside the barrier (in m0 [free electron mass])
 
+        m_lh_barrier : float
+            Effective mass of light holes inside the barrier (in m0 [free electron mass])
+
+        m_lh_well : float
+            Effective mass of light holes inside the barrier (in m0 [free electron mass])
+            
         biasing_voltage : float
             Biasing voltage amplitude (in Volts)
 
@@ -103,8 +109,11 @@ class Qvntvs:
         self.m_e_barrier = m_e_barrier * self.m_e
 
         #Defining the Hole Effective Masses
-        self.m_h_well = m_h_well * self.m_e
-        self.m_h_barrier = m_h_barrier * self.m_e
+        self.m_hh_well = m_hh_well * self.m_e
+        self.m_hh_barrier = m_hh_barrier * self.m_e
+
+        self.m_lh_well = m_lh_well * self.m_e
+        self.m_lh_barrier = m_lh_barrier * self.m_e
 
         #Defining the Biasing Voltage
         self.biasing_voltage = biasing_voltage
@@ -195,7 +204,7 @@ class Qvntvs:
         Returns
         ----------
         V_general : ndarray
-            Potential profile of the structure
+            Potential profile of the structure (in Joules)
 
         """
 
@@ -225,12 +234,20 @@ class Qvntvs:
         min_V = np.min(V_general)
         V_general -= min_V
 
+
+        """
+        The reference point for the electron potential profile is the topmost potential of well material bandgap
+        The reference point for the hole potential profile is the bottommost potential of well material bandgap
+
+        References are chosen this way to quickly compute optical emission energies.
+        """
+
         if plot:
             if electron:
-                plt.plot(self.x * 1e9, V_general / self.ev_to_J, label='Multiple Quantum Well, Electron', color='red')
+                plt.plot(self.x * 1e9, V_general / self.ev_to_J, label='Potential Profile', color='red')
                 plt.xlabel("Position (nm)")
                 plt.ylabel("Potential (eV)")
-                plt.title(f"{self.n_wells} Quantum Wells, Electrons")
+                plt.title(f"{self.n_wells} Quantum Wells, Electrons w.r.t. Top of the Well Bandgap")
                 plt.grid(True)
                 plt.legend()
                 plt.show()
@@ -238,7 +255,7 @@ class Qvntvs:
                 plt.plot(self.x * 1e9, -V_general / self.ev_to_J, label='Multiple Quantum Well, Hole', color='red')
                 plt.xlabel("Position (nm)")
                 plt.ylabel("Potential (eV)")
-                plt.title(f"{self.n_wells} Quantum Wells, Holes")
+                plt.title(f"{self.n_wells} Quantum Wells, Holes w.r.t. Bottom of the Well Bandgap")
                 plt.grid(True)
                 plt.legend()
                 plt.show()
@@ -248,7 +265,7 @@ class Qvntvs:
 
         return V_general
     
-    def effective_mass_profile(self, electron=True, plot=True):
+    def effective_mass_profile(self, plot=True):
         """
         Set the effective mass profiles for electrons and holes in different materials and heterojunctions
         
@@ -257,20 +274,28 @@ class Qvntvs:
         electron : boolean
             Set the particle experiencing the potential
 
+        heavy_hole : boolean
+            Set the type of hole
+
         plot : boolean
             Set the plotting option
         
         Returns
         -----------
-        m_general : ndarray
-            Effective mass profile of the structure
+        m_general_e : ndarray
+            Effective mass profile of electrons
+        
+        m_general_hh : ndarray
+            Effective mass profile of heavy holes
+        
+        m_general_lh : ndarray
+            Effective mass profile of light holes
             
         """
-        if electron:
-            m_general = np.ones(self.n_intervals) * self.m_e_barrier
 
-        elif electron == False:
-            m_general = np.ones(self.n_intervals) * self.m_h_barrier
+        m_general_e = np.ones(self.n_intervals) * self.m_e_barrier
+        m_general_hh = np.ones(self.n_intervals) * self.m_hh_barrier
+        m_general_lh = np.ones(self.n_intervals) * self.m_lh_barrier
 
         position = self.barrier_width  #Same Idea with the Potentials
 
@@ -282,27 +307,45 @@ class Qvntvs:
             left_of_well_index = np.argmin(np.abs(self.x - left_of_well))
             right_of_well_index = np.argmin(np.abs(self.x - right_of_well))
 
-            if electron:
-                m_general[left_of_well_index:right_of_well_index] = self.m_e_well
-            else:
-                m_general[left_of_well_index:right_of_well_index] = self.m_h_well
+            
+            m_general_e[left_of_well_index:right_of_well_index] = self.m_e_well
+    
+            m_general_hh[left_of_well_index:right_of_well_index] = self.m_hh_well
+
+            m_general_lh[left_of_well_index:right_of_well_index] = self.m_lh_well
 
             position = right_of_well + self.barrier_width #Iterate to the next well
 
         if plot:
-            plt.plot(self.x * 1e9, m_general / self.m_e, label='Effective Mass Profile (in Free Electron Mass)', color='blue')
-            plt.title(f"Effective Mass Profile - {'Electron' if electron else 'Hole'}")
-            plt.xlabel("Position (nm)")
-            plt.ylabel("Effective Mass (In Free Electron Mass)")
-            plt.grid(True)
-            plt.legend()
-            plt.show()
+        
+                plt.plot(self.x * 1e9, m_general_e / self.m_e, label='Effective Mass Profile (in Free Electron Mass)', color='blue')
+                plt.title(f"Effective Mass Profile of Electrons")
+                plt.xlabel("Position (nm)")
+                plt.ylabel("Effective Mass of Electrons (In Free Electron Mass)")
+                plt.grid(True)
+                plt.legend()
+                plt.show()
+    
+                plt.plot(self.x * 1e9, m_general_hh / self.m_e, label='Effective Mass Profile (in Free Electron Mass)', color='blue')
+                plt.title(f"Effective Mass Profile of Heavy Holes")
+                plt.xlabel("Position (nm)")
+                plt.ylabel("Effective Mass (In Free Electron Mass)")
+                plt.grid(True)
+                plt.legend()
+                plt.show()
+                plt.plot(self.x * 1e9, m_general_lh / self.m_e, label='Effective Mass Profile (in Free Electron Mass)', color='blue')
+                plt.title(f"Effective Mass Profile of Light Holes")
+                plt.xlabel("Position (nm)")
+                plt.ylabel("Effective Mass (In Free Electron Mass)")
+                plt.grid(True)
+                plt.legend()
+                plt.show()
         else:
             plt.close()
             
-        return m_general
+        return m_general_e, m_general_hh, m_general_lh
 
-    def inverse_mass_profile(self, m_general, electron = True, plot=True):
+    def inverse_mass_profile(self, m_general, plot=True):
         """
         Compute the inverse masses and harmonic means for interfaces
         
@@ -324,13 +367,6 @@ class Qvntvs:
             Inverse mass profile
         """
 
-        if m_general is None:
-            #Using the previously defined effective mass profile function to get the effective mass profile
-            if electron:
-                m_general = self.effective_mass_profile(electron=True, plot=False)
-            elif electron == False:
-                m_general = self.effective_mass_profile(electron=False, plot=False)
-
         inv_m_general = 1 / m_general
         inv_mass = np.zeros(self.n_intervals - 1)
         inv_mass = 0.5 * (inv_m_general[:-1] + inv_m_general[1:])
@@ -349,7 +385,7 @@ class Qvntvs:
 
         return inv_mass
 
-    def hamiltonian_matrix(self, V_general, inv_mass, electron=True, plot=True):
+    def hamiltonian_matrix(self, V_general, inv_mass):
         """
         Construct the Hamiltonian matrix numerically regarding Ben-Daniel-Duke and Finite-Difference Methods 
         
@@ -361,12 +397,6 @@ class Qvntvs:
         
         inv_mass : ndarray
             Inverse effective mass profile
-
-        electron : boolean
-            Set True if the particle is electron
-        
-        plot : boolean
-            Set True to plot
 
         Results
         ----------
@@ -530,7 +560,7 @@ class Qvntvs:
 
         return recombination_probability, recombination_density
         
-    def optical_emission(self, energy_levels_electron, energy_levels_hole):
+    def optical_emission(self, energy_levels_electron, energy_levels_hole, heavy_holes = True):
         """
         Calculate the wavelength of the emission
         Parameters
@@ -547,9 +577,13 @@ class Qvntvs:
         wavelength_in_nm : float
             The wavelength of the emission
         """
+
+        biasing_joule = self.biasing_voltage*self.ev_to_J
+        built_in_joule = self.built_in_voltage*self.ev_to_J
+
         if len(energy_levels_electron) > 0 and len(energy_levels_hole) > 0:
 
-            E_photon = self.band_gap_well + (energy_levels_electron[0]) + abs(energy_levels_hole[0])
+            E_photon = self.band_gap_well + (energy_levels_electron[0]) -(energy_levels_hole[0])
             h = self.h_bar*2*3.14
 
             wavelength = h*self.c/E_photon
@@ -558,7 +592,7 @@ class Qvntvs:
         
         elif len(energy_levels_electron) == 0 and len(energy_levels_hole) > 0:
             
-            E_photon = self.band_gap_well + abs(energy_levels_hole[0])
+            E_photon = self.band_gap_well -(energy_levels_hole[0])
             h = self.h_bar*2*3.14
 
             wavelength = h*self.c/E_photon
@@ -591,6 +625,13 @@ class Qvntvs:
             color = "Red"
         else:
             color = "Infrared"
-        print(f"Emission Wavelength is : {wavelength_in_nm:.5f} nm, {color}")
+
+
+        if heavy_holes == True:
+            print(f"Energy of Transition of ee-hh is : {E_photon/self.ev_to_J:.5f} eV")
+            print(f"Emission Wavelength of ee-hh is : {wavelength_in_nm:.5f} nm, {color}")
+        else:
+            print(f"Energy of Transition of ee-lh is : {E_photon/self.ev_to_J:.5f} eV")
+            print(f"Emission Wavelength of ee-lh is : {wavelength_in_nm:.5f} nm, {color}")
 
         return wavelength_in_nm
