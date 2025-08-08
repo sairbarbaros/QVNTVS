@@ -14,6 +14,7 @@ optical phenomena and more.
 * Open /examples folder
 * Learn the basics from manuals.
 * Read the manuals in order: from #1 to #4.
+* The manuals include infinite rectangular, finite rectangular, multiple wells, and tilted well heterojunction applications.
 * Open /source folder
 * Install the source file QVNTVS.py and requirements
 * Import Qvntvs and run.
