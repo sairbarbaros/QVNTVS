@@ -12,7 +12,8 @@ optical phenomena and more.
 * Get optical emission spectrum.
 ## How to Run?
 * Open /examples folder
-* Learn the basics from Jupyter Notebooks
+* Learn the basics from manuals.
+* Read the manuals in order: from #1 to #4.
 * Open /source folder
 * Install the source file QVNTVS.py and requirements
 * Import Qvntvs and run.
