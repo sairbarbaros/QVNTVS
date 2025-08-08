@@ -13,6 +13,7 @@ optical phenomena and more.
 ## How to Run?
 * Open /examples folder
 * Learn the basics from Jupyter Notebooks
+* Open /source folder
 * Install the source file QVNTVS.py and requirements
 * Import Qvntvs and run.
 ## Theoretical and Methodological Information
