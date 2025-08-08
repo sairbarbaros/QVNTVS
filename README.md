@@ -1,7 +1,7 @@
 # QVNTVS: Open-Source Quantum Well Simulator
 * **QVNTVS** is an open-source project based in Python for modeling and simulating quantum wells of different shapes and heterojunctions including analyzing energy levels, wavefunctions, recombination probabilities,
 optical phenomena and more.
-* **QVNTVS** is an original work of Barbaros Şair and conducted as an independent research effort while working as Undergraduate Researcher at UNAM, National Nanotechnology Centre.
+* **QVNTVS** is an original work of Barbaros Şair.
 * The paper of **QVTNVS** is published in arXiv.
 * To read it:
 * To cite it:
