@@ -21,7 +21,8 @@ optical phenomena and more.
 ## Theoretical and Methodological Information
 * Open /docs folder
 * Read QVNTVS.pdf
-* For Bibtex citation: @misc{şair2025qvntvsopensourcequantumsimulator,
+* For Bibtex citation:
+* @misc{şair2025qvntvsopensourcequantumsimulator,
       title={QVNTVS, Open-Source Quantum Well Simulator}, 
       author={Barbaros Şair},
       year={2025},
