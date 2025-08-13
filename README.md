@@ -13,7 +13,7 @@ optical phenomena and more.
 ## How to Run?
 * Open /examples folder
 * Learn the basics from manuals.
-* Read the manuals in order: from #1 to #4.
+* Read the manuals in order: from #1 to #4. They are also accesible from Google Colab.
 * The manuals include infinite rectangular, finite rectangular, multiple wells, and tilted well heterojunction applications.
 * Open /source folder
 * Install the source file QVNTVS.py and requirements
